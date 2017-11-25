@@ -3,6 +3,7 @@
 class TankDesigner{
 	constructor(){
 		this.tanks = [];
+		this.projectiles = {};
 		this.gameTimer = null;
 		this.timerInterval = 150;
 		this.intervalsPerSecond = 1000 / this.timerInterval;
@@ -18,6 +19,7 @@ class TankDesigner{
 		for(let callback in this.callbacks){
 			this.callbacks[callback] = this.callbacks[callback].bind(this);
 		}
+
 	}
 	createGameSpace(targetArea){
 		this.gamePanel = $("<div>",{
@@ -34,6 +36,7 @@ class TankDesigner{
 			left: '-5000px',
 			top: '-5000px'
 		});
+		this.createTestProjectile();
 	}
 	startHeartbeat(){
 		if(this.gameTimer){
@@ -48,7 +51,8 @@ class TankDesigner{
 	handleHeartbeat(){
 		this.tanks.forEach( tank => {
 			tank.handleUpdate();
-		})
+		});
+		this.detectProjectileCollisions();
 	}
 	getDegreesFromRadians(radians){
 		return radians * (180 / Math.PI);
@@ -148,11 +152,81 @@ class TankDesigner{
 		console.log('tank sensor activate');
 		return this.detectAllTanksFromTank(tank);
 	}
+	createTestProjectile(){
+		return;
+		//maybe come back to this
+		const projectileOptions = {
+			position: {x:0, y:0},
+			radians: 0, 
+			velocity: 0,
+			interval: 1000, 
+			range: 0,
+			onLoadCallback: (data)=>{
+				console.log('done', data[0].style);
+			}
+		}
+		let dummyProjectile = new Projectile(projectileOptions);
+		this.gamePanel.append(dummyProjectile);
+		dummyProjectile.object.prototype.size = {
+			top: 1, 
+			right: 1,
+			bottom: 1,
+			left: 1
+		}
+		dummyProjectile.object.die();
+		//debugger;
+
+	}
+
 	createProjectile(sourceTank){
 		const firePoint = sourceTank.getFirePoint();
 		//(radians, velocity, interval, range)
-		this.gamePanel.append(new Projectile(firePoint,sourceTank.getTurretAngleAsRadians(), sourceTank.components.gun.velocity,this.timerInterval/10, sourceTank.components.gun.range));
+		//position, radians, velocity, interval, range, onLoadCallback
+		const projectileOptions = {
+			position: firePoint,
+			radians: sourceTank.getTurretAngleAsRadians(), 
+			velocity: sourceTank.components.gun.velocity,
+			interval: this.timerInterval/10, 
+			range: sourceTank.components.gun.range,
+			onLoadCallback: null,
+			originator: sourceTank
+		}
+		let projectile = new Projectile(projectileOptions);
+		this.gamePanel.append(projectile.element );
+		this.projectiles[projectile.object.timer]=projectile.object;
 	}
+	detectProjectileCollisions(){
+
+		for(let bulletIndex in this.projectiles){
+			this.tanks.forEach( tank => {
+				if(tank===this.projectiles[bulletIndex].originator){
+					return;
+				}
+				if(!(tank.values.bounds.right < this.projectiles[bulletIndex].position.x
+							||
+				   tank.values.bounds.left  > this.projectiles[bulletIndex].position.x + this.projectiles[bulletIndex].size.width
+				   			||
+				   tank.values.bounds.top   > this.projectiles[bulletIndex].position.y + this.projectiles[bulletIndex].size.height
+				            ||
+				   tank.values.bounds.bottom < this.projectiles[bulletIndex].position.y
+				)){
+					this.handleCollision(tank, this.projectiles[bulletIndex]);
+				}
+			})
+		}
+	}
+	removeBullet(bulletID){
+		debugger;
+		delete this.projectiles[bulletID];
+	}
+	handleCollision(tank, bullet){
+		console.log(tank.getName() + ' was hit by bullet ', bullet.timer);
+		tank.die();
+		let bulletID = bullet.timer;
+		bullet.die();
+		this.removeBullet(bulletID);
+	}
+
 }
 const tankParts = {
 	engine:{
@@ -229,8 +303,8 @@ class BaseTank{
 			currentSpot: {x: 0, y: 0}
 		}
 		this.components = {};
-		this.options = {};
-		this.values = {};
+		this.options = {}; //configuration for tank components
+		this.values = {};  //current settings for tank, such as location and angles
 		for(let key in defaults){
 			this.options[key] = options[key] || defaults[key];
 		}
@@ -255,6 +329,12 @@ class BaseTank{
 		this.handleUpdate = this.handleSuccessiveUpdate;
 		this.values.radianConvert = Math.PI / 180;
 		this.calculateNewDelta();
+		this.values.bounds = { //duplicating values here a bit
+			top: this.values.currentSpot.top,
+			right: this.values.currentSpot.left + this.values.width,
+			bottom: this.values.currentSpot.top + this.values.height,
+			left: this.values.currentSpot.left
+		}
 	}
 	handleSuccessiveUpdate(){
 		
@@ -384,11 +464,18 @@ class BaseTank{
 	getFirePoint(){
 		return this.getCurrentPosition();
 	}
+	die(){
+		this.domElements.turret.remove();
+		this.domElements.body.remove();
+		this.handleUpdate = function(){};
+	}
 
 }
 class Projectile{
-	constructor(position, radians, velocity, interval, range){
+	constructor(options){
+		let {position, radians, velocity, interval, range, onLoadCallback, originator} = options;
 		let intervalsPerSecond = 1000 / interval;
+		this.originator = originator;
 		velocity = velocity / intervalsPerSecond;
 		this.timer = null;
 		this.domElement = null;
@@ -407,11 +494,11 @@ class Projectile{
 			velocity: velocity,
 			finalRange: range
 		}
-		this.createDomElement();
+		this.createDomElement(onLoadCallback);
 		this.startHeartbeat();
-		return this.domElement;
+		return {element: this.domElement, object: this};
 	}
-	createDomElement(){
+	createDomElement(callback=null){
 		this.domElement = $("<div>",{
 			'class':'bullet',
 			css:{
@@ -446,7 +533,10 @@ class Projectile{
 			top: this.position.y+'px'
 		})
 	}
-
+}
+Projectile.prototype.size = {
+	height: 1,
+	width: 1
 }
 class DanTank extends BaseTank{
 	constructor(callback, options,setup){
