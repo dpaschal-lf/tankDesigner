@@ -63,3 +63,18 @@ body{
 	position: absolute;
 	background-color: black;
 }
+
+
+/*projectile*/
+
+.bullet{
+	position: absolute;
+	height: 2px;
+	width: 2px;
+	background-color: limegreen;
+	z-index: 100;
+}
+
+
+
+

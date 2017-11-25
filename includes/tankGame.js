@@ -142,10 +142,16 @@ class TankDesigner{
 	}
 	fireTankGun(tank){
 		console.log('tank gun fire');
+		this.createProjectile(tank);
 	}
 	activateTankSensor(tank){
 		console.log('tank sensor activate');
 		return this.detectAllTanksFromTank(tank);
+	}
+	createProjectile(sourceTank){
+		const firePoint = sourceTank.getFirePoint();
+		//(radians, velocity, interval, range)
+		this.gamePanel.append(new Projectile(firePoint,sourceTank.getTurretAngleAsRadians(), sourceTank.components.gun.velocity,this.timerInterval/10, sourceTank.components.gun.range));
 	}
 }
 const tankParts = {
@@ -190,7 +196,8 @@ const tankParts = {
 			range: 200, //range in pixels
 			reload: 5, //time in seconds
 			damage: 20, //hitpoints damage
-			spaceNeeded: 2
+			spaceNeeded: 2,
+			velocity: 140
 		}
 	}
 }
@@ -337,7 +344,7 @@ class BaseTank{
 		this.callbacks.fireGun(this);
 	}
 	activateSensor(){
-		this.callbacks.activateSensor(this);
+		return this.callbacks.activateSensor(this);
 	}
 	move(direction){
 		switch(direction){
@@ -368,8 +375,76 @@ class BaseTank{
 	getTurretAngle(){
 		return this.values.turretAngle;
 	}
+	getTurretAngleAsRadians(){
+		return this.values.turretAngle * Math.PI / 180;
+	}
 	getName(){
 		return this.options.name;
+	}
+	getFirePoint(){
+		return this.getCurrentPosition();
+	}
+
+}
+class Projectile{
+	constructor(position, radians, velocity, interval, range){
+		let intervalsPerSecond = 1000 / interval;
+		velocity = velocity / intervalsPerSecond;
+		this.timer = null;
+		this.domElement = null;
+		this.position = {
+			x: position.x,
+			y: position.y
+		};
+		this.totalRange = 0;
+		this.startTime = (new Date()).getTime();
+		this.interval = interval;
+
+		this.vector = {
+			xDelta: Math.cos(radians) * velocity,
+			yDelta: Math.sin(radians) * velocity,
+			radianAngle: radians,
+			velocity: velocity,
+			finalRange: range
+		}
+		this.createDomElement();
+		this.startHeartbeat();
+		return this.domElement;
+	}
+	createDomElement(){
+		this.domElement = $("<div>",{
+			'class':'bullet',
+			css:{
+				left: this.position.x+'px',
+				top: this.position.y+'px'
+			}
+		});
+	}
+	die(){
+		this.stopHeartbeat();
+		this.domElement.remove();
+	}
+	startHeartbeat(){
+		if(this.timer){
+			this.stopHeartbeat();
+		}
+		this.timer = setInterval(this.handleHeartbeat.bind(this), this.interval);
+	}
+	stopHeartbeat(){
+		clearInterval(this.timer);
+		this.timer = null;
+	}
+	handleHeartbeat(){
+		this.position.x += this.vector.xDelta;
+		this.position.y += this.vector.yDelta;
+		this.totalRange += this.vector.velocity;
+		if(this.totalRange> this.vector.finalRange){
+			this.die();
+		}
+		this.domElement.css({
+			left: this.position.x+'px',
+			top: this.position.y+'px'
+		})
 	}
 
 }
