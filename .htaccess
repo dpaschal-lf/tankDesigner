@@ -1,0 +1,4 @@
+RewriteEngine On 
+RewriteCond %{REQUEST_URI} !/includes/	
+#RewriteBase /tankDesigner/
+RewriteRule . index.html [L,NC]

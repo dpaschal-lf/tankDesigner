@@ -1,0 +1,65 @@
+body{
+	margin: 0;
+	height: 100vh;
+}
+*{
+	box-sizing: border-box;
+}
+#mainDisplay, #extraInfo{
+	height: 100%;
+	float: left;
+	border: 1px solid black;
+}
+#mainDisplay{
+	width: 75%;
+}
+#extraInfo{
+	width: 25%;
+}
+
+/* game area css */
+.gameArea{
+	width: 100%;
+	height: 100%;
+	left: 0;
+	top: 0;
+	position: absolute;
+	overflow: hidden;
+}
+.gamePanel{
+	position: absolute;
+}
+/* tank*/
+
+.tank {
+	background-color: lightblue;
+	position: absolute;
+	display: inline-block;
+	border: 1px solid black;
+
+}
+.tank.body{
+	width: 40px;
+	height: 20px;
+	position: absolute;
+	box-sizing: border-box;
+	z-index: 1;
+}
+.tank.turret{
+	left: 50%;
+	top: 50%;
+	width: 10px;
+	height: 10px;
+	transform: translate(-50%, -50%) rotateZ(0deg);
+	z-index: 2;
+}
+.tank.turret::after{
+	content: '';
+	left: 100%;
+	top: 50%;
+	transform: translate(0%, -50%);
+	width: 20px;
+	height: 2px;
+	position: absolute;
+	background-color: black;
+}
