@@ -3,6 +3,7 @@
 class TankDesigner{
 	constructor(){
 		this.tanks = [];
+		this.hulks = [];
 		this.projectiles = {};
 		this.gameTimer = null;
 		this.timerInterval = 150;
@@ -196,10 +197,10 @@ class TankDesigner{
 		this.projectiles[projectile.object.timer]=projectile.object;
 	}
 	detectProjectileCollisions(){
-
+		var collidedPairs = [];
 		for(let bulletIndex in this.projectiles){
 			this.tanks.forEach( tank => {
-				if(tank===this.projectiles[bulletIndex].originator){
+				if(this.projectiles[bulletIndex] && tank===this.projectiles[bulletIndex].originator){
 					return;
 				}
 				if(!(tank.values.bounds.right < this.projectiles[bulletIndex].position.x
@@ -210,10 +211,14 @@ class TankDesigner{
 				            ||
 				   tank.values.bounds.bottom < this.projectiles[bulletIndex].position.y
 				)){
-					this.handleCollision(tank, this.projectiles[bulletIndex]);
+				   collidedPairs.push({tank: tank, bullet:this.projectiles[bulletIndex]});
 				}
 			})
 		}
+		collidedPairs.forEach(pair=>{
+			debugger;
+			this.handleCollision(pair.tank, pair.bullet);
+		});
 	}
 	removeBullet(bulletID){
 		debugger;
@@ -222,6 +227,8 @@ class TankDesigner{
 	handleCollision(tank, bullet){
 		console.log(tank.getName() + ' was hit by bullet ', bullet.timer);
 		tank.die();
+		let tankIndex = this.tanks.indexOf(tank);
+		this.hulks.push(this.tanks.splice(tankIndex,1)[0]);
 		let bulletID = bullet.timer;
 		bullet.die();
 		this.removeBullet(bulletID);
@@ -453,10 +460,10 @@ class BaseTank{
 		}
 	}
 	getTurretAngle(){
-		return this.values.turretAngle;
+		return this.convertTo360(this.values.tankAngle - this.values.turretAngle);
 	}
 	getTurretAngleAsRadians(){
-		return this.values.turretAngle * Math.PI / 180;
+		return this.getTurretAngle() * Math.PI / 180;
 	}
 	getName(){
 		return this.options.name;
