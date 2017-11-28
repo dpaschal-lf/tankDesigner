@@ -16,7 +16,8 @@ class TankDesigner{
 			fireGun: this.fireTankGun,
 			move: this.moveTank,
 			activateSensor: this.activateTankSensor,
-			convertTo360: this.convertTo360
+			convertTo360: this.convertTo360,
+			boundsDetector: this.boundsDetector
 		};
 		for(let callback in this.callbacks){
 			this.callbacks[callback] = this.callbacks[callback].bind(this);
@@ -225,12 +226,10 @@ class TankDesigner{
 			})
 		}
 		collidedPairs.forEach(pair=>{
-			debugger;
 			this.handleCollision(pair.tank, pair.bullet);
 		});
 	}
 	removeBullet(bulletID){
-		debugger;
 		delete this.projectiles[bulletID];
 	}
 	handleCollision(tank, bullet){
@@ -241,6 +240,12 @@ class TankDesigner{
 		let bulletID = bullet.timer;
 		bullet.die();
 		this.removeBullet(bulletID);
+	}
+	boundsDetector(tank, desiredX, desiredY){
+		debugger;
+		var tankValues = {
+			test: 0
+		}
 	}
 
 }
@@ -332,7 +337,7 @@ class BaseTank{
 		this.handleUpdate = this.handleFirstUpdate;
 	}
 	loadComponents(){
-		const componentsToLoad = ['engine','sensor','gun', 'turret'];
+		const componentsToLoad = ['engine','sensor','gun', 'turret', 'body'];
 		componentsToLoad.forEach(
 			componentType => {
 				this.components[componentType] = this.loader(componentType, this.options[componentType])
@@ -393,7 +398,11 @@ class BaseTank{
 			'class': 'tank turret'
 		});
 		const body = $("<div>",{
-			'class': 'tank body'
+			'class': 'tank body',
+			css:{
+				height: this.components.body.size.height,
+				width: this.components.body.size.width
+			}
 		});
 		const barrel = $("<div>",{
 			'class': 'barrel'
@@ -413,12 +422,6 @@ class BaseTank{
 		return body;
 	}
 
-	determinaAngleDirection(origin, destination){
-		if((destination - origin + 360) % 360 < 180){
-			return 1
-		} 
-		return -1;
-	}
 	turretTurn(angle){
 		angle = this.convertTo360(angle);
 
@@ -502,7 +505,6 @@ class BaseTank{
 		this.domElements.body.remove();
 		this.handleUpdate = function(){};
 	}
-
 }
 
 function pinpointSpot(x,y){
