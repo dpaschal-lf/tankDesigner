@@ -53,14 +53,21 @@ body{
 	transform: translate(-50%, -50%) rotateZ(0deg);
 	z-index: 2;
 }
-.tank.turret::after{
+.barrel{
 	content: '';
 	left: 100%;
 	top: 50%;
 	transform: translate(0%, -50%);
 	width: 20px;
-	height: 2px;
+	height: 1px;
 	position: absolute;
+	background-color: black;
+}
+.firingPoint{
+	position: absolute;
+	right: 0;
+	width: 1px;
+	height: 1px;
 	background-color: black;
 }
 
@@ -74,6 +81,32 @@ body{
 	background-color: red;
 	z-index: 100;
 }
+
+.pinPoint{
+	position: absolute;
+	z-index: 1000;
+	display: inline-block;
+	background-color: red;
+	height: 1px;
+	width: 1px;
+
+}
+.pinPoint::before, .pinPoint::after{
+	position: absolute;
+	content: '';
+	width: 10px;
+	height: 1px;
+	background-color: limegreen;
+	left: -5px;
+	z-index: 999;
+}
+.pinPoint::before{
+	transform: rotateZ(45deg);
+}
+.pinPoint::after{
+	transform: rotateZ(-45deg);
+}
+
 
 
 

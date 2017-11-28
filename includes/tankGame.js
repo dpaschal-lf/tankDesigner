@@ -15,7 +15,8 @@ class TankDesigner{
 			bodyTurn: this.turnTankBody,
 			fireGun: this.fireTankGun,
 			move: this.moveTank,
-			activateSensor: this.activateTankSensor
+			activateSensor: this.activateTankSensor,
+			convertTo360: this.convertTo360
 		};
 		for(let callback in this.callbacks){
 			this.callbacks[callback] = this.callbacks[callback].bind(this);
@@ -58,6 +59,14 @@ class TankDesigner{
 	getDegreesFromRadians(radians){
 		return radians * (180 / Math.PI);
 	}
+	convertTo360(angle){
+		if(angle>=360){
+			angle = 0 + angle % 360;
+		} else if(angle<0){
+			angle = 360 - this.convertTo360(angle*-1);
+		}
+		return angle;	
+	}
 	getAngleBetweenPoints(sourcePoint, destinationPoint){
 		var theta = Math.atan2(
 			(sourcePoint.y - destinationPoint.y ) ,
@@ -81,7 +90,7 @@ class TankDesigner{
 		const tankSensor = sourceTank.components.sensor;
 		const sourceTankLocation = sourceTank.getCurrentPosition();
 		const targetTankLocation = targetTank.getCurrentPosition();
-		const targetTankAngle = this.getAngleBetweenPoints(sourceTankLocation,targetTankLocation);
+		const targetTankAngle = this.convertTo360(this.getAngleBetweenPoints(sourceTankLocation,targetTankLocation));
 		const baseSensorAngle = sourceTank.getTurretAngle();
 		const halfArc = tankSensor.arc/2;
 		const sensorAngles = {
@@ -247,7 +256,7 @@ const tankParts = {
 	sensor: {
 		0: {
 			arc: 45,
-			distance: 150, //detection range in pixels,
+			distance: 500, //detection range in pixels,
 			powerUsage: 2, //power usage in units
 			spaceNeeded: 1
 		}
@@ -310,6 +319,7 @@ class BaseTank{
 			currentSpot: {x: 0, y: 0}
 		}
 		this.components = {};
+		this.convertTo360 = this.callbacks.convertTo360;
 		this.options = {}; //configuration for tank components
 		this.values = {};  //current settings for tank, such as location and angles
 		for(let key in defaults){
@@ -385,21 +395,24 @@ class BaseTank{
 		const body = $("<div>",{
 			'class': 'tank body'
 		});
+		const barrel = $("<div>",{
+			'class': 'barrel'
+		});
+		const firePoint = $("<div>",{
+			'class': 'firingPoint'
+		});
+		
+		barrel.append(firePoint);
+		turret.append(barrel);
 		body.append(turret);
 		this.domElements = {
 			body: body,
-			turret: turret
+			turret: turret,
+			firePoint: firePoint
 		} 
 		return body;
 	}
-	convertTo360(angle){
-		if(angle>360){
-			angle = 0 + angle % 360;
-		} else if(angle<0){
-			angle = 360 - this.convertTo360(angle*-1);
-		}
-		return angle;	
-	}
+
 	determinaAngleDirection(origin, destination){
 		if((destination - origin + 360) % 360 < 180){
 			return 1
@@ -460,7 +473,7 @@ class BaseTank{
 		}
 	}
 	getTurretAngle(){
-		return this.convertTo360(this.values.tankAngle - this.values.turretAngle);
+		return this.convertTo360(this.values.tankAngle + this.values.turretAngle);
 	}
 	getTurretAngleAsRadians(){
 		return this.getTurretAngle() * Math.PI / 180;
@@ -469,13 +482,38 @@ class BaseTank{
 		return this.options.name;
 	}
 	getFirePoint(){
-		return this.getCurrentPosition();
+		var element = this.domElements.firePoint;
+		debugger;
+		const totalOffset = {
+			x: 0,
+			y: 0
+		}
+		while(!element.hasClass('gamePanel')){
+			let position = element.position();
+			totalOffset.x += position.left;
+			totalOffset.y += position.top;
+			element = element.parent();
+		}
+		//let point = this.domElements.firePoint.offset();
+		return totalOffset;
 	}
 	die(){
 		this.domElements.turret.remove();
 		this.domElements.body.remove();
 		this.handleUpdate = function(){};
 	}
+
+}
+
+function pinpointSpot(x,y){
+	var pinPoint = $("<div>",{
+		'class': 'pinPoint',
+		css:{
+			left: x+'px',
+			top: y+'px'
+		}
+	});
+	$(".gamePanel").append(pinPoint);
 
 }
 class Projectile{
@@ -550,3 +588,4 @@ class DanTank extends BaseTank{
 		super(callback, options,setup);
 	}
 }
+
