@@ -244,7 +244,8 @@ class TankDesigner{
 	boundsDetector(tank, desiredX, desiredY){
 		debugger;
 		var tankValues = {
-			test: 0
+			width: tank.components.body.size.width,
+			height: tank.components.body.size.height,
 		}
 	}
 
@@ -393,6 +394,12 @@ class BaseTank{
 
  		//console.log('tank '+this.options.name + ' update');
 	}
+	determineAngleDirection(origin, destination){
+		if((destination - origin + 360) % 360 < 180){
+			return 1
+		} 
+		return -1;
+	}
 	render(){
 		const turret = $("<div>",{
 			'class': 'tank turret'
@@ -423,10 +430,12 @@ class BaseTank{
 	}
 
 	turretTurn(angle){
+		angle = angle - this.values.tankAngle;
+		debugger;
 		angle = this.convertTo360(angle);
 
 		this.callbacks.turretTurn(angle, this);
-		this.values.turretTurnDelta = this.values.shiftRatio * this.components.turret.turnSpeed * this.determinaAngleDirection(this.values.turretAngle, angle);
+		this.values.turretTurnDelta = this.values.shiftRatio * this.components.turret.turnSpeed * this.determineAngleDirection(this.values.turretAngle, angle);
 		this.values.destinationTurretAngle = angle;
 
 	}
@@ -439,7 +448,7 @@ class BaseTank{
 	bodyTurn(angle){
 		this.callbacks.bodyTurn(angle, this);
 		angle = this.convertTo360(angle);
-		this.values.tankTurnDelta = this.values.shiftRatio * this.components.engine.turnSpeed * this.determinaAngleDirection(this.values.tankAngle, angle);
+		this.values.tankTurnDelta = this.values.shiftRatio * this.components.engine.turnSpeed * this.determineAngleDirection(this.values.tankAngle, angle);
 		this.values.destinationTankAngle = angle;
 		this.calculateNewDelta();
 	}
