@@ -241,12 +241,23 @@ class TankDesigner{
 		bullet.die();
 		this.removeBullet(bulletID);
 	}
-	boundsDetector(tank, desiredX, desiredY){
+	boundsDetector(tank, desiredOffset){
 		debugger;
-		var tankValues = {
-			width: tank.components.body.size.width,
-			height: tank.components.body.size.height,
+		const tankValues = {
+			width: tank.values.width,
+			height: tank.values.height,
+
 		}
+		let tankPos = tank.domElements.body.position();
+		let nextX = tankPos.left + desiredOffset.x;
+		let nextY = tankPos.top + desiredOffset.y;
+		if(nextX < 0 || nextX+tankValues.width> this.gamePanel.width()){
+			return false;
+		}
+		if(nextY < 0 || nextY+tankValues.height > this.gamePanel.width()){
+			return false;
+		}
+		return true;
 	}
 
 }
@@ -360,9 +371,13 @@ class BaseTank{
 		}
 	}
 	handleSuccessiveUpdate(){
-		
-		this.values.currentSpot.left += this.values.delta.x;
-		this.values.currentSpot.top += this.values.delta.y;
+		if(this.callbacks.boundsDetector(this, {x: this.values.delta.x, y: this.values.delta.y})){
+			this.values.currentSpot.left += this.values.delta.x;
+			this.values.currentSpot.top += this.values.delta.y;			
+		} else {
+			this.move('stop');
+		}
+
 
  		this.values.turretAngle = this.convertTo360(this.values.turretAngle);
  		this.values.tankAngle = this.convertTo360(this.values.tankAngle);
