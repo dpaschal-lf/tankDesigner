@@ -1,6 +1,10 @@
+html{
+	font-size: 3vmin;
+}
 body{
 	margin: 0;
 	height: 100vh;
+	font-size: 0;
 }
 *{
 	box-sizing: border-box;
@@ -9,6 +13,10 @@ body{
 	height: 100%;
 	border: 1px solid black;
 	position: relative;
+	display: inline-block;
+}
+#mainDisplay, #extraInfo{
+	font-size: 1rem;
 }
 #mainDisplay{
 	width: 75%;
@@ -17,21 +25,28 @@ body{
 #extraInfo{
 	width: 25%;
 	position: relative;
+	vertical-align: top;
 }
-#mainDisplay > *{
-	font-size: 1rem;
-}
+
 /* game area css */
 .gameArea{
 	width: 100%;
 	height: 100%;
 	overflow: hidden;
 	position: relative;
+	display: inline-block;
 }
 .gamePanel{
 	position: absolute;
 	background-image: url(../images/Topographic-Map-Pattern-5.png);
 	border: 5px inset lightblue;
+}
+/* tank listing */
+.tankList{
+
+}
+.tankListing{
+	cursor: pointer;
 }
 /* tank*/
 

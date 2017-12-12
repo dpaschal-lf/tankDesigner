@@ -213,7 +213,8 @@ class TankDesigner{
 			interval: this.timerInterval/10, 
 			range: sourceTank.components.gun.range,
 			onLoadCallback: null,
-			originator: sourceTank
+			originator: sourceTank,
+			damage: sourceTank.components.gun.damage
 		}
 		let projectile = new Projectile(projectileOptions);
 		this.gamePanel.append(projectile.element );
@@ -247,9 +248,13 @@ class TankDesigner{
 	}
 	handleCollision(tank, bullet){
 		console.log(tank.getName() + ' was hit by bullet ', bullet.timer);
-		tank.die();
-		let tankIndex = this.tanks.indexOf(tank);
-		this.hulks.push(this.tanks.splice(tankIndex,1)[0]);
+		if(tank.handleDamage(bullet.damage)<0){
+			tank.die();
+			let tankIndex = this.tanks.indexOf(tank);
+			this.hulks.push(this.tanks.splice(tankIndex,1)[0]);
+			this.updateInfoView();
+		}
+
 		let bulletID = bullet.timer;
 		bullet.die();
 		this.removeBullet(bulletID);
@@ -306,6 +311,40 @@ class TankDesigner{
 			top: coordinates.y+this.viewPortHalfValues.y+'px'
 		})
 	}
+	createInfoPanels(targetArea){
+		this.displayPanel = $("<div>",{
+			'class': 'tankList',
+		})
+		$(targetArea).append(this.displayPanel);
+	}
+	sortTanksByName(tanks){
+		const sorted = [];
+		const tanksToSort = tanks.slice();
+		while(tanksToSort.length){
+			let smallest = 0;
+			tanksToSort.forEach(
+				(tank, index, array) => {
+					if(tank.getName() < array[smallest].getName()){
+						smallest = index; 
+					} 
+				})
+			sorted.push(tanksToSort[smallest]);
+			tanksToSort.splice(smallest, 1);
+		}
+		return sorted;
+		//quick selection sort
+
+	}
+	updateInfoView(){
+		this.displayPanel.empty();
+		this.displayPanel.append( this.sortTanksByName(this.tanks).map( tank => $("<div>",{
+			text: `${tank.getName()} ${tank.getHealth()}%`,
+			class: 'tankListing',
+			on: {
+				click: this.centerViewOnTank.bind(this, tank)
+			}
+		})))
+	}
 
 }
 const tankParts = {
@@ -348,8 +387,8 @@ const tankParts = {
 	gun: {
 		0: {
 			range: 200, //range in pixels
-			reload: 5, //time in seconds
-			damage: 20, //hitpoints damage
+			reload: 2, //time in seconds
+			damage: 4, //hitpoints damage
 			spaceNeeded: 2,
 			velocity: 140
 		}
@@ -360,6 +399,13 @@ class BaseTank{
 	constructor(callbacks, options={}, setup={}){
 		this.loader = callbacks.load;
 		this.callbacks = callbacks;
+		this.userCallbacks = {
+			onTurretTurnComplete : ()=>{},
+			onBodyTurnComplete: ()=>{},
+			onDamage: ()=>{},
+			onDeath: ()=>{},
+			onCollision: ()=>{}
+		}
 		this.world = {};
 		this.actionQueue = [];
 		const defaults = {
@@ -371,6 +417,8 @@ class BaseTank{
 			turret: 0
 		}
 		const initialValues = {
+			maxHitPoints: 10,
+			hitPoints: 10,
 			turretAngle: 0,
 			destinationTurretAngle: 0,
 			tankAngle: 0,
@@ -402,7 +450,11 @@ class BaseTank{
 				this.components[componentType] = this.loader(componentType, this.options[componentType])
 		});
 	}
-
+	handleDamage(damageAmount){
+		this.values.hitPoints-=damageAmount;
+		this.userCallbacks.onDamage(damageAmount);
+		return this.values.hitPoints;
+	}
 	handleFirstUpdate(){
 		this.values.currentSpot = this.domElements.body.position();
 		this.values.width= this.domElements.body.width();
@@ -426,6 +478,7 @@ class BaseTank{
 			this.values.currentSpot.top += this.values.delta.y;			
 		} else {
 			this.move('stop');
+			this.userCallbacks.onCollision('bounds');
 		}
 
 
@@ -494,9 +547,8 @@ class BaseTank{
 		return body;
 	}
 
-	turretTurn(angle){
+	turretTurn(angle, callback=()=>{}){
 		angle = angle - this.values.tankAngle;
-		debugger;
 		angle = this.convertTo360(angle);
 
 		this.callbacks.turretTurn(angle, this);
@@ -510,7 +562,7 @@ class BaseTank{
 		this.values.delta.y = (this.values.speed* this.values.shiftRatio * this.values.direction) * Math.sin(radians);
 		this.values.delta.x = (this.values.speed* this.values.shiftRatio * this.values.direction) * Math.cos(radians);
 	}
-	bodyTurn(angle){
+	bodyTurn(angle, callback=()=>{}){
 		this.callbacks.bodyTurn(angle, this);
 		angle = this.convertTo360(angle);
 		this.values.tankTurnDelta = this.values.shiftRatio * this.components.engine.turnSpeed * this.determineAngleDirection(this.values.tankAngle, angle);
@@ -564,9 +616,11 @@ class BaseTank{
 	getName(){
 		return this.options.name;
 	}
+	getHealth(){
+		return ((this.values.hitPoints / this.values.maxHitPoints) * 100) >> 0;
+	}
 	getFirePoint(){
 		var element = this.domElements.firePoint;
-		debugger;
 		const totalOffset = {
 			x: 0,
 			y: 0
@@ -580,9 +634,25 @@ class BaseTank{
 		//let point = this.domElements.firePoint.offset();
 		return totalOffset;
 	}
+	on(handler, callback){
+		if(!handler || !callback){
+			console.error('proper use: on(handler, callback)');
+			return;
+		}
+		if(!this.userCallbacks[handler]){
+			console.error('available callbacks: '+ Object.keys(this.userCallbacks).join(', '));
+			return;
+		}
+		if(typeof callback !== 'function'){
+			console.error('callback must be a function');
+			return;
+		}
+		this.userCallbacks[handler] = callback;
+	}
 	die(){
 		this.domElements.turret.remove();
 		this.domElements.body.remove();
+		this.userCallbacks.onDeath();
 		this.handleUpdate = function(){};
 	}
 }
@@ -600,10 +670,11 @@ function pinpointSpot(x,y){
 }
 class Projectile{
 	constructor(options){
-		let {position, radians, velocity, interval, range, onLoadCallback, originator} = options;
+		let {damage, position, radians, velocity, interval, range, onLoadCallback, originator} = options;
 		let intervalsPerSecond = 1000 / interval;
 		this.originator = originator;
 		velocity = velocity / intervalsPerSecond;
+		this.damage = damage;
 		this.timer = null;
 		this.domElement = null;
 		this.position = {
