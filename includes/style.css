@@ -7,27 +7,31 @@ body{
 }
 #mainDisplay, #extraInfo{
 	height: 100%;
-	float: left;
 	border: 1px solid black;
+	position: relative;
 }
 #mainDisplay{
 	width: 75%;
+	font-size: 0;
 }
 #extraInfo{
 	width: 25%;
+	position: relative;
 }
-
+#mainDisplay > *{
+	font-size: 1rem;
+}
 /* game area css */
 .gameArea{
 	width: 100%;
 	height: 100%;
-	left: 0;
-	top: 0;
-	position: absolute;
 	overflow: hidden;
+	position: relative;
 }
 .gamePanel{
 	position: absolute;
+	background-image: url(../images/Topographic-Map-Pattern-5.png);
+	border: 5px inset lightblue;
 }
 /* tank*/
 

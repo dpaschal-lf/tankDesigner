@@ -9,6 +9,9 @@ class TankDesigner{
 		this.timerInterval = 150;
 		this.intervalsPerSecond = 1000 / this.timerInterval;
 		this.shiftRatio = this.timerInterval / 1000;
+		this.adjustViewport = this.centerViewOnCoordinates;
+		this.focusObject = null;
+		this.viewPortHalfValues = null;
 		this.callbacks = {
 			load: this.loadComponent,
 			turretTurn: this.turnTankTurret,
@@ -17,7 +20,8 @@ class TankDesigner{
 			move: this.moveTank,
 			activateSensor: this.activateTankSensor,
 			convertTo360: this.convertTo360,
-			boundsDetector: this.boundsDetector
+			boundsDetector: this.boundsDetector,
+			distanceToBounds: this.distanceToBoundaries
 		};
 		for(let callback in this.callbacks){
 			this.callbacks[callback] = this.callbacks[callback].bind(this);
@@ -33,12 +37,20 @@ class TankDesigner{
 		});
 		this.gamePanel.appendTo(this.gameArea);
 		$(targetArea).append(this.gameArea);
+		this.viewPortHalfValues = {
+			x: document.documentElement.clientWidth / 2,
+			y: document.documentElement.clientHeight / 2
+		}
 		this.gamePanel.css({
 			height: '10000px',
 			width: '10000px',
 			left: '-5000px',
 			top: '-5000px'
 		});
+		this.focus = {
+			x: -5000,
+			y: -5000
+		}
 		this.createTestProjectile();
 	}
 	startHeartbeat(){
@@ -56,6 +68,7 @@ class TankDesigner{
 			tank.handleUpdate();
 		});
 		this.detectProjectileCollisions();
+		this.adjustViewport();
 	}
 	getDegreesFromRadians(radians){
 		return radians * (180 / Math.PI);
@@ -242,7 +255,6 @@ class TankDesigner{
 		this.removeBullet(bulletID);
 	}
 	boundsDetector(tank, desiredOffset){
-		debugger;
 		const tankValues = {
 			width: tank.values.width,
 			height: tank.values.height,
@@ -254,10 +266,45 @@ class TankDesigner{
 		if(nextX < 0 || nextX+tankValues.width> this.gamePanel.width()){
 			return false;
 		}
-		if(nextY < 0 || nextY+tankValues.height > this.gamePanel.width()){
+		if(nextY < 0 || nextY+tankValues.height > this.gamePanel.height()){
 			return false;
 		}
 		return true;
+	}
+	distanceToBoundaries(tank){
+		const pos = tank.domElements.body.position();
+		return {
+			north: pos.top,
+			south: this.gamePanel.height() - pos.top + tank.domElements.body.height(),
+			east: pos.left,
+			west: this.gamePanel.width() - pos.left + tank.domElements.body.width()
+		} //TODO: this doesn't take into account the rotation, really, need to adjust this
+	}
+	
+	centerViewOnCoordinates(){
+		//intentionally does nothing, we already moved coordinates when we called changeViewFocus
+	}
+	centerViewOnTank(tank){
+		let coordinates = tank.getCurrentPosition();
+		this.changeViewCoordinates({ x: coordinates.x *-1, y: coordinates.y*-1});
+	}
+	changeViewFocus(selector){
+		if(!selector){
+			this.adjustViewport = this.centerViewOnCoordinates;
+		}
+		else if(selector.constructor.__proto__ === BaseTank){
+			this.changeViewCoordinates(selector.getCurrentPosition());
+			this.adjustViewport = this.centerViewOnTank.bind(this, selector);
+		} else if(selector.x!==undefined && selector.y!==undefined){
+			this.changeViewCoordinates(selector);
+			this.adjustViewport = this.centerViewOnCoordinates;
+		}
+	}
+	changeViewCoordinates(coordinates){
+		this.gamePanel.css({
+			left: coordinates.x+this.viewPortHalfValues.x+'px',
+			top: coordinates.y+this.viewPortHalfValues.y+'px'
+		})
 	}
 
 }
@@ -370,6 +417,9 @@ class BaseTank{
 			left: this.values.currentSpot.left
 		}
 	}
+	distanceToBounds(){
+		return this.callbacks.distanceToBounds(this);
+	}
 	handleSuccessiveUpdate(){
 		if(this.callbacks.boundsDetector(this, {x: this.values.delta.x, y: this.values.delta.y})){
 			this.values.currentSpot.left += this.values.delta.x;
@@ -473,24 +523,30 @@ class BaseTank{
 	activateSensor(){
 		return this.callbacks.activateSensor(this);
 	}
+	activateMagnetoDetector(){
+		return this.callbacks.activateMagnetoDetector(this);
+	}
 	move(direction){
 		switch(direction){
 			case 'stop': 
 				this.values.speed = 0;
 				this.calculateNewDelta();
+				this.values.destinationTankAngle = this.values.tankAngle;
 				return; 
 			case 'forward':
+				this.values.direction = -1;
+				break;
 			case 'backward':
-				this.callbacks.move(direction,this);
-				this.values.destinationTankAngle = this.values.tankAngle; //if we move, stop our turn
+				this.values.direction = 1;
 				break;
 			default: 
 				console.error('invalid direction');
 				return;
 		}
+		this.callbacks.move(direction,this);
+		this.values.destinationTankAngle = this.values.tankAngle; //if we move, stop our turn
 		console.log(this);
 		this.values.speed = this.components.engine.speed;
-		this.values.direction = direction==='forward' ? 1 : -1;
 		this.calculateNewDelta();
 	}
 	getCurrentPosition(){
