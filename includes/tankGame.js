@@ -19,6 +19,7 @@ class TankDesigner{
 			fireGun: this.fireTankGun,
 			move: this.moveTank,
 			activateSensor: this.activateTankSensor,
+			activateMagnetoDetector: this.activateMagnetoDetector,
 			convertTo360: this.convertTo360,
 			boundsDetector: this.boundsDetector,
 			distanceToBounds: this.distanceToBoundaries
@@ -176,6 +177,35 @@ class TankDesigner{
 		console.log('tank sensor activate');
 		return this.detectAllTanksFromTank(tank);
 	}
+	activateMagnetoDetector(tank){
+		const pos = tank.getCurrentPosition();
+		const quadrants = {
+			ne: 0,
+			se: 0,
+			nw: 0,
+			sw: 0
+		}
+		this.tanks.forEach(otherTank => {
+			const otherTankPos = otherTank.getCurrentPosition();
+			if(tank === otherTank){
+				return;
+			}
+			if(otherTankPos.y < pos.y){
+				if(otherTankPos.x < pos.x){
+					quadrants.nw++;
+				} else {
+					quadrants.ne++;
+				}
+			} else {
+				if(otherTankPos.x < pos.x){
+					quadrants.sw++;
+				} else {
+					quadrants.se++;
+				}				
+			}
+		})
+		return quadrants;
+	}
 	createTestProjectile(){
 		return;
 		//maybe come back to this
@@ -252,12 +282,14 @@ class TankDesigner{
 			tank.die();
 			let tankIndex = this.tanks.indexOf(tank);
 			this.hulks.push(this.tanks.splice(tankIndex,1)[0]);
-			this.updateInfoView();
+			
 		}
 
 		let bulletID = bullet.timer;
 		bullet.die();
 		this.removeBullet(bulletID);
+		this.adjustViewport();
+		this.updateInfoView();
 	}
 	boundsDetector(tank, desiredOffset){
 		const tankValues = {
@@ -739,6 +771,9 @@ Projectile.prototype.size = {
 class DanTank extends BaseTank{
 	constructor(callback, options,setup){
 		super(callback, options,setup);
+	}
+	update(){
+
 	}
 }
 
