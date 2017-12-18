@@ -432,14 +432,12 @@ class BaseTank{
 		this.loader = callbacks.load;
 		this.callbacks = callbacks;
 		this.userCallbacks = {
-			onTurretTurnComplete : ()=>{},
-			onBodyTurnComplete: ()=>{},
-			onDamage: ()=>{},
-			onDeath: ()=>{},
-			onCollision: ()=>{}
+			turretTurnComplete : ()=>{},
+			bodyTurnComplete: ()=>{},
+			damage: ()=>{},
+			death: ()=>{},
+			collision: ()=>{}
 		}
-		this.world = {};
-		this.actionQueue = [];
 		const defaults = {
 			name: 'randomTank'+((Math.random()*100000000) >> 0),
 			engine: 0,
@@ -484,7 +482,7 @@ class BaseTank{
 	}
 	handleDamage(damageAmount){
 		this.values.hitPoints-=damageAmount;
-		this.userCallbacks.onDamage(damageAmount);
+		this.userCallbacks.damage(damageAmount);
 		return this.values.hitPoints;
 	}
 	handleFirstUpdate(){
@@ -501,7 +499,7 @@ class BaseTank{
 			left: this.values.currentSpot.left
 		}
 	}
-	distanceToBounds(){
+	getDistanceToBounds(){
 		return this.callbacks.distanceToBounds(this);
 	}
 	handleSuccessiveUpdate(){
@@ -510,7 +508,7 @@ class BaseTank{
 			this.values.currentSpot.top += this.values.delta.y;			
 		} else {
 			this.move('stop');
-			this.userCallbacks.onCollision('bounds');
+			this.userCallbacks.collision('bounds');
 		}
 
 
@@ -579,7 +577,7 @@ class BaseTank{
 		return body;
 	}
 
-	turretTurn(angle, callback=()=>{}){
+	turretTurn(angle){
 		angle = angle - this.values.tankAngle;
 		angle = this.convertTo360(angle);
 
@@ -684,7 +682,7 @@ class BaseTank{
 	die(){
 		this.domElements.turret.remove();
 		this.domElements.body.remove();
-		this.userCallbacks.onDeath();
+		this.userCallbacks.death();
 		this.handleUpdate = function(){};
 	}
 }
@@ -768,12 +766,100 @@ Projectile.prototype.size = {
 	height: 1,
 	width: 1
 }
+class TargetTank extends BaseTank{
+	constructor(callback, options, setup){
+		super(callback, options, setup);
+	}
+	compute(){
+		//does nothing;
+	}
+}
 class DanTank extends BaseTank{
 	constructor(callback, options,setup){
 		super(callback, options,setup);
+		this.currentTarget = null;
+		this.desiredDirection = null;
+		this.directions = {
+			ne: 45,
+			nw: 135,
+			sw: 225,
+			se: 315
+		}
 	}
-	update(){
+	initialize(){
+		this.magnetoScan = this.activateMagnetoDetector();
+	}
+	getMostTargets(){
+		let targets = this.activateMagnetoDetector();
+		let mostTargetZone = null;
+		let mostTargets = null;
+		for(let z in targets){
+			if(targets[z] > mostTargets){
+				mostTargets = targets[z];
+				mostTargetZone = z;
+			}
+		}
+		return this.directions[mostTargetZone];
+	}
+	getClosestTargets(targets){
+		let closestIndex = 0;
+		
+		for(let i=1; i<targets.length; i++){
+			if(targets[i].range < targets[closestIndex].range){
+				closestIndex = i;
+			}
+		}
+		return targets[closestIndex];	
+	}
+	scanVicinity(callback){
+		let zonesToScan = [45,135, 225, 315];
+		let currentZone = 0;
+		let timer = null;
+		let scans = [];
 
+		function scanZone(){
+			if(++currentZone > zonesToScan.length){
+				clearInterval(timer);
+				callback(scans);
+			}
+			scans.concat(this.activateSensor());
+		}
+	}
+	updateTargets(targets){
+		if(targets){
+			this.currentTarget = getClosestTargets(targets);
+		}
+		this.on('turretTurnComplete', this.fireAndRescan.bind(this) );
+		this.turretTurn(this.currentTarget.angle);
+	}
+	fireAndRescan(){
+		this.fireCannon();
+		setTimeout(this.rescan.bind(this), 500);
+	}
+	reScan(){
+		const targets = this.activateSensor();
+		let i = 0;
+		while(i<targets.length){
+			 if(targets[i].name === this.currentTarget.name){
+			 	if(this.getTurretAngle() != targets[i].angle){
+			 		this.currentTarget = targets[i];
+			 		this.updateTargets();
+			 	} else {
+			 		this.fireAndRescan();
+			 	}
+			 }
+		}
+	}
+	compute(){
+		if(!this.desiredDirection){
+			this.desiredDirection = this.getMostTargets();
+		}
+		if(this.currentTarget===null){
+			scanVicinity( this.updateTargets.bind(this) );
+		} else {
+
+		}
+		
 	}
 }
 
