@@ -79,7 +79,11 @@
 			- death: when tank dies,
 			- collision: when tank collides with something
 		- callback (function) - the handler to execute when the event happens
-
+- getComponentSpecs
+	- purpose: get specifications of an item on your tank
+	- params: 
+		- item (string) - the item you want the specs of
+	- return: (object) with specs of the item in question
 
 
 

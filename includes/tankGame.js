@@ -192,7 +192,7 @@ class TankDesigner{
 			this.createProjectile(tank);
 			tank.reloadTime = window.performance.now() + tank.components.gun.reload*1000;
 		} else {
-			console.warn('gun reloading, cannot shoot');
+			//console.warn('gun reloading, cannot shoot');
 		}
 		
 		

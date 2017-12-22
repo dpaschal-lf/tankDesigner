@@ -30,6 +30,7 @@ class SampleTank extends BaseTank{
 		if(mostTargets === null){
 			this.compute = function(){};
 			console.log('I am the champion!');
+			this.currentMode = 'stop';
 			return false;
 		}
 		return this.directions[mostTargetZone];
@@ -99,7 +100,7 @@ class SampleTank extends BaseTank{
 		const targets = this.activateSensor();
 		let i = 0;
 		while(i<targets.length){
-			 if(targets[i].name === this.currentTarget.name){
+			 if(this.currentTarget && targets[i].name === this.currentTarget.name){
 			 	if(this.getTurretAngle() != targets[i].angle){
 			 		this.currentTarget = targets[i];
 			 		this.updateTargets();
@@ -127,12 +128,11 @@ class SampleTank extends BaseTank{
 		switch(this.currentMode){
 			case 'sniff':
 				var targets = this.activateMagnetoDetector();
-				if(targets.length>0){
+				if(targets){
 					this.desiredDirection = this.getMostTargets(targets);
 					this.currentMode = 'hunt';
 		 			this.on('bodyTurnComplete',this.moveForwardAndScan.bind(this));
 		 			console.log(targets, this.desiredDirection); 
-		 			debugger;
 		 			this.bodyTurn(this.desiredDirection);
 				} else {
 					this.currentMode = 'stop'; //no more other tanks on game board
