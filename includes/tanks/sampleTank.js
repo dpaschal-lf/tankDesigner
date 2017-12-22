@@ -1,6 +1,11 @@
 class SampleTank extends BaseTank{
 	constructor(callback, options,setup){
 		super(callback, options,setup);
+		this.currentMode = 'search'; 
+			//sniff = figure out directions to tanks in world
+			//hunt = go in direction of most tanks and then search
+			//search = look around for current tank in immediate vicinity
+			//destroy = try to kill current target
 		this.currentTarget = null;
 		this.desiredDirection = null;
 		this.scanInProgress = false;
@@ -84,16 +89,12 @@ class SampleTank extends BaseTank{
 			this.fireCannon();
 			setTimeout(this.reScan.bind(this), 500);
 		} else {
-			this.bodyTurning = true;
-			this.on('bodyTurnComplete',function(){
-				this.move('forward');
-				setInterval(fireAndRescan.bind(this),1000);
-			}.bind(this));
-			this.bodyTurn(this.currentTarget.angle);
+			this.currentMode = 'hunt';
+			this.on('bodyTurnComplete',this.moveForwardAndScan.bind(this,1000));
+			this.bodyTurn(this.currentTarget.angle+180);
 		}
-		
-		
 	}
+
 	reScan(){
 		const targets = this.activateSensor();
 		let i = 0;
@@ -112,40 +113,76 @@ class SampleTank extends BaseTank{
 		this.magnetoScan = this.activateMagnetoDetector();
 		this.currentTarget = null;
 	}
-	moveForwardAndScan(){
+	moveForwardAndScan(duration=5000){
 		this.move('forward');
-		this.bodyTurning = false;
-		this.movingToPoint = true;
-		setTimeout(this.stopAndScan.bind(this),5000);
+		setTimeout(this.stopAndScan.bind(this),duration);
 	}
 	stopAndScan(){
 		this.move('stop');
-		this.movingToPoint = false;
-		this.currentTarget = null;
-		this.desiredDirection = this.getMostTargets();
-		this.scanVicinity( this.updateTargets.bind(this) )
+		this.currentMode = 'search'
 	}
 	compute(){
-		return;
-		if(!this.movingToPoint && this.currentTarget===null && !this.scanInProgress){
-			this.scanVicinity( this.updateTargets.bind(this) );
-		} else if(!this.movingToPoint && !this.scanInProgress){
-			if(!this.desiredDirection){
-				this.desiredDirection = this.getMostTargets();
-			}
-			if(this.getBodyAngle !== this.desiredDirection && !this.bodyTurning){
-				const gunSpecs = this.getComponentSpecs('gun');
-				if(!this.currentTarget){
-					let desiredAngle = 		
-					this.bodyTurning = true;
-					this.on('bodyTurnComplete',this.moveForwardAndScan.bind(this));
-					this.bodyTurn(this.desiredDirection);
-				} 
-
-			}
-		} else {
+		//return;
+		console.log(this.currentMode + ' mode');
+		switch(this.currentMode){
+			case 'sniff':
+				var targets = this.activateMagnetoDetector();
+				if(targets.length>0){
+					this.desiredDirection = this.getMostTargets(targets);
+					this.currentMode = 'hunt';
+		 			this.on('bodyTurnComplete',this.moveForwardAndScan.bind(this));
+		 			console.log(targets, this.desiredDirection); 
+		 			debugger;
+		 			this.bodyTurn(this.desiredDirection);
+				} else {
+					this.currentMode = 'stop'; //no more other tanks on game board
+				}
+				
+				break;
+			case 'search':
+				this.currentMode = 'scanning';
+				this.scanVicinity( this.updateTargets.bind(this) );
+				break;
+			case 'destroy':
+				if(this.currentTarget){
+					this.fireAndRescan();
+				}
+				//console.log("current target: "+this.currentTarget)
+				else if(this.currentTarget===null){
+					this.currentMode='search';
+				} else if(this.currentTarget===undefined){
+					this.currentMode = 'sniff';
+				}
+				break;
+			case 'hunt':
+				break;
+			case 'scanning':
+				if(this.currentTarget!==null){ //if we are scanning, look for a target to be available
+					this.currentMode = 'destroy'
+				}
+				break;
 
 		}
+
+		// if(!this.movingToPoint && this.currentTarget===null && !this.scanInProgress){
+			
+		// } else if(!this.movingToPoint && !this.scanInProgress){
+		// 	if(!this.desiredDirection){
+		// 		this.desiredDirection = this.getMostTargets();
+		// 	}
+		// 	if(this.getBodyAngle !== this.desiredDirection && !this.bodyTurning){
+		// 		const gunSpecs = this.getComponentSpecs('gun');
+		// 		if(!this.currentTarget){
+		// 			let desiredAngle = 		
+		// 			this.bodyTurning = true;
+		// 			this.on('bodyTurnComplete',this.moveForwardAndScan.bind(this));
+		// 			this.bodyTurn(this.desiredDirection);
+		// 		} 
+
+		// 	}
+		// } else {
+
+		// }
 		
 	}
 }

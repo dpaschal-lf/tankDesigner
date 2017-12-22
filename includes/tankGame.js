@@ -140,12 +140,12 @@ class TankDesigner{
 				)
 			)
 			if(tankRange < tankSensor.distance){
-				console.log('detected');
+				//console.log('detected');
 				return {angle: targetTankAngle, range: tankRange, name: targetTank.getName()}
 			}
-			console.log('out of range, not detected');
+			//console.log('out of range, not detected');
 		}
-		console.log('out of angle, not detected');
+		//console.log('out of angle, not detected');
 		return false;
 	}
 	addTankToGameSpace(tankDom, worldLocation){
@@ -187,7 +187,7 @@ class TankDesigner{
 		//console.log('tank body turn');
 	}
 	fireTankGun(tank){
-		console.log('tank gun fire');
+		//console.log('tank gun fire');
 		if(tank.reloadTime < window.performance.now()){
 			this.createProjectile(tank);
 			tank.reloadTime = window.performance.now() + tank.components.gun.reload*1000;
@@ -198,7 +198,7 @@ class TankDesigner{
 		
 	}
 	activateTankSensor(tank){
-		console.log('tank sensor activate');
+		//console.log('tank sensor activate');
 		return this.detectAllTanksFromTank(tank);
 	}
 	activateMagnetoDetector(tank){
@@ -240,7 +240,7 @@ class TankDesigner{
 			interval: 1000, 
 			range: 0,
 			onLoadCallback: (data)=>{
-				console.log('done', data[0].style);
+				//console.log('done', data[0].style);
 			}
 		}
 		let dummyProjectile = new Projectile(projectileOptions);
@@ -301,7 +301,7 @@ class TankDesigner{
 		delete this.projectiles[bulletID];
 	}
 	handleCollision(tank, bullet){
-		console.log(tank.getName() + ' was hit by bullet ', bullet.timer);
+		//console.log(tank.getName() + ' was hit by bullet ', bullet.timer);
 		if(tank.handleDamage(bullet.damage)<0){
 			tank.die();
 			let tankIndex = this.tanks.indexOf(tank);
@@ -392,7 +392,7 @@ class TankDesigner{
 
 	}
 	updateInfoView(){
-		console.log('updateInfoView start');
+		//console.log('updateInfoView start');
 		this.displayPanel.empty();
 		this.displayPanel.append( 
 			this.sortTanksByName(this.tanks)
@@ -405,7 +405,7 @@ class TankDesigner{
 					} /*end of dom options*/) //end of dom create 
 				) //end of map
 		)//end of append
-		console.log('updateInfoView end');
+		//console.log('updateInfoView end');
 	} //end of updateInfoView
 
 }
