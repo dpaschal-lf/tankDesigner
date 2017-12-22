@@ -6,7 +6,9 @@ class TankDesigner{
 		this.hulks = [];
 		this.projectiles = {};
 		this.gameTimer = null;
+		this.aiTimer = null;
 		this.timerInterval = 150;
+		this.aiTimerInterval = 500;
 		this.intervalsPerSecond = 1000 / this.timerInterval;
 		this.shiftRatio = this.timerInterval / 1000;
 		this.adjustViewport = this.centerViewOnCoordinates;
@@ -58,11 +60,13 @@ class TankDesigner{
 		if(this.gameTimer){
 			this.stopHeartbeat();
 		}
+		this.startAICycle();
 		this.gameTimer = setInterval(this.handleHeartbeat.bind(this), this.timerInterval);
 	}
 	stopHeartbeat(){
 		clearInterval(this.gameTimer);
 		this.gameTimer = null;
+		this.endAICycle();
 	}
 	handleHeartbeat(){
 		this.tanks.forEach( tank => {
@@ -70,6 +74,19 @@ class TankDesigner{
 		});
 		this.detectProjectileCollisions();
 		this.adjustViewport();
+	}
+	startAICycle(){
+		if(this.aiTimer){
+			this.endAICycle();
+		}
+		setInterval( this.handleAICycle.bind(this), this.aiTimerInterval);
+	}
+	endAICycle(){
+		clearInterval(this.aiTimer);
+		this.aiTimer= null;
+	}
+	handleAICycle(){
+		this.tanks.forEach( tank => tank.compute());
 	}
 	getDegreesFromRadians(radians){
 		return radians * (180 / Math.PI);
@@ -150,7 +167,7 @@ class TankDesigner{
 		let tank = new className(this.callbacks, options, setup);
 		this.tanks.push(tank);
 		var domElement = tank.render();
-		
+		tank.reloadTime = 0;
 		this.addTankToGameSpace(domElement, {x: setup.currentSpot.x, y: setup.currentSpot.y});
 
 	}
@@ -161,17 +178,24 @@ class TankDesigner{
 		tank[action];
 	}
 	moveTank(direction, tank){
-		console.log('main game moving tank');
+		//console.log('main game moving tank');
 	}
 	turnTankTurret(angle, tank){
-		console.log('turning tank turret');
+		//console.log('turning tank turret');
 	}
 	turnTankBody(angle, tank){
-		console.log('tank body turn');
+		//console.log('tank body turn');
 	}
 	fireTankGun(tank){
 		console.log('tank gun fire');
-		this.createProjectile(tank);
+		if(tank.reloadTime < window.performance.now()){
+			this.createProjectile(tank);
+			tank.reloadTime = window.performance.now() + tank.components.gun.reload*1000;
+		} else {
+			console.warn('gun reloading, cannot shoot');
+		}
+		
+		
 	}
 	activateTankSensor(tank){
 		console.log('tank sensor activate');
@@ -368,15 +392,21 @@ class TankDesigner{
 
 	}
 	updateInfoView(){
+		console.log('updateInfoView start');
 		this.displayPanel.empty();
-		this.displayPanel.append( this.sortTanksByName(this.tanks).map( tank => $("<div>",{
-			text: `${tank.getName()} ${tank.getHealth()}%`,
-			class: 'tankListing',
-			on: {
-				click: this.centerViewOnTank.bind(this, tank)
-			}
-		})))
-	}
+		this.displayPanel.append( 
+			this.sortTanksByName(this.tanks)
+				.map( tank => $("<div>",{
+						text: `${tank.getName()} ${tank.getHealth()}%`,
+						class: 'tankListing',
+						on: {
+							click: this.changeViewFocus.bind(this, tank)
+						} //end of on handlers
+					} /*end of dom options*/) //end of dom create 
+				) //end of map
+		)//end of append
+		console.log('updateInfoView end');
+	} //end of updateInfoView
 
 }
 const tankParts = {
@@ -384,13 +414,13 @@ const tankParts = {
 		0: {
 			speed: 20, //pixels per second
 			power: 10,  //how many units of power does it provide for upgrades
-			turnSpeed: 10,  //degrees per second,
+			turnSpeed: 90,  //degrees per second,
 			spaceNeeded: 10
 		}
 	},
 	sensor: {
 		0: {
-			arc: 45,
+			arc: 80,
 			distance: 500, //detection range in pixels,
 			powerUsage: 2, //power usage in units
 			spaceNeeded: 1
@@ -413,7 +443,7 @@ const tankParts = {
 				width: '10px'
 			},
 			equipmentSpace: 3,  //units of space in the turret
-			turnSpeed: 33 //33 degrees per second
+			turnSpeed: 180 //33 degrees per second
 		}
 	},
 	gun: {
@@ -431,6 +461,10 @@ class BaseTank{
 	constructor(callbacks, options={}, setup={}){
 		this.loader = callbacks.load;
 		this.callbacks = callbacks;
+		this.states = {
+			turretTurning: false,
+			bodyTurning: false
+		}
 		this.userCallbacks = {
 			turretTurnComplete : ()=>{},
 			bodyTurnComplete: ()=>{},
@@ -513,6 +547,7 @@ class BaseTank{
 
 
  		this.values.turretAngle = this.convertTo360(this.values.turretAngle);
+
  		this.values.tankAngle = this.convertTo360(this.values.tankAngle);
  		if(this.values.destinationTankAngle !== this.values.tankAngle){
  			var difference = Math.abs(this.values.tankAngle - this.values.destinationTankAngle);
@@ -521,6 +556,9 @@ class BaseTank{
  			} else {
  				this.values.tankAngle += this.values.tankTurnDelta;
  			}
+ 		} else if(this.states.bodyTurning){
+ 			this.states.bodyTurning = false;
+ 			this.userCallbacks.bodyTurnComplete();
  		}
 
 
@@ -531,6 +569,9 @@ class BaseTank{
  			} else {
  				this.values.turretAngle += this.values.turretTurnDelta;
  			}
+ 		} else if(this.states.turretTurning){
+ 			this.states.turretTurning = false;
+ 			this.userCallbacks.turretTurnComplete();
  		}
 
   		this.domElements.body.css({
@@ -578,6 +619,7 @@ class BaseTank{
 	}
 
 	turretTurn(angle){
+		this.states.turretTurning=true;
 		angle = angle - this.values.tankAngle;
 		angle = this.convertTo360(angle);
 
@@ -593,6 +635,7 @@ class BaseTank{
 		this.values.delta.x = (this.values.speed* this.values.shiftRatio * this.values.direction) * Math.cos(radians);
 	}
 	bodyTurn(angle, callback=()=>{}){
+		this.states.bodyTurning = true;
 		this.callbacks.bodyTurn(angle, this);
 		angle = this.convertTo360(angle);
 		this.values.tankTurnDelta = this.values.shiftRatio * this.components.engine.turnSpeed * this.determineAngleDirection(this.values.tankAngle, angle);
@@ -603,7 +646,12 @@ class BaseTank{
 		this.callbacks.fireGun(this);
 	}
 	activateSensor(){
+		this.domElements.turret.addClass('sense');
+		setTimeout(function(element){
+			element.removeClass('sense');
+		}, 100,this.domElements.turret);
 		return this.callbacks.activateSensor(this);
+
 	}
 	activateMagnetoDetector(){
 		return this.callbacks.activateMagnetoDetector(this);
@@ -640,6 +688,9 @@ class BaseTank{
 	getTurretAngle(){
 		return this.convertTo360(this.values.tankAngle + this.values.turretAngle);
 	}
+	getBodyAngle(){
+		return this.values.tankAngle;
+	}
 	getTurretAngleAsRadians(){
 		return this.getTurretAngle() * Math.PI / 180;
 	}
@@ -648,6 +699,9 @@ class BaseTank{
 	}
 	getHealth(){
 		return ((this.values.hitPoints / this.values.maxHitPoints) * 100) >> 0;
+	}
+	getComponentSpecs(component){
+		return this.components[component];
 	}
 	getFirePoint(){
 		var element = this.domElements.firePoint;
@@ -779,15 +833,14 @@ class DanTank extends BaseTank{
 		super(callback, options,setup);
 		this.currentTarget = null;
 		this.desiredDirection = null;
+		this.scanInProgress = false;
+		this.movingToPoint = false;
 		this.directions = {
-			ne: 45,
-			nw: 135,
-			sw: 225,
-			se: 315
+			ne: 315,
+			nw: 45,
+			sw: 135,
+			se: 225
 		}
-	}
-	initialize(){
-		this.magnetoScan = this.activateMagnetoDetector();
 	}
 	getMostTargets(){
 		let targets = this.activateMagnetoDetector();
@@ -799,42 +852,77 @@ class DanTank extends BaseTank{
 				mostTargetZone = z;
 			}
 		}
+		if(mostTargets === null){
+			this.compute = function(){};
+			console.log('I am the champion!');
+			return false;
+		}
 		return this.directions[mostTargetZone];
 	}
 	getClosestTargets(targets){
 		let closestIndex = 0;
+		let closestRange = null;
 		
 		for(let i=1; i<targets.length; i++){
-			if(targets[i].range < targets[closestIndex].range){
+			if(targets[i].range < closestRange){
 				closestIndex = i;
+				closestRange = targets[i].range;
 			}
 		}
+
 		return targets[closestIndex];	
 	}
 	scanVicinity(callback){
-		let zonesToScan = [45,135, 225, 315];
+		if(this.scanInProgress){
+			return;
+		}
+		this.scanInProgress= true;
+		let zonesToScan = [0,66, 132, 198, 264, 330];
 		let currentZone = 0;
 		let timer = null;
 		let scans = [];
-
+		scanZone.call(this);
 		function scanZone(){
-			if(++currentZone > zonesToScan.length){
-				clearInterval(timer);
-				callback(scans);
+			if(this.getTurretAngle() !== zonesToScan[currentZone]){
+				this.on('turretTurnComplete', scanZone.bind(this) );
+				this.turretTurn(zonesToScan[currentZone]);
+			} else {
+				scans = scans.concat(this.activateSensor());
+				if(++currentZone >= zonesToScan.length){
+					callback(scans);
+					this.scanInProgress = false;
+					return;
+				}
+				scanZone.call(this);
 			}
-			scans.concat(this.activateSensor());
+			
 		}
 	}
 	updateTargets(targets){
 		if(targets){
-			this.currentTarget = getClosestTargets(targets);
+			this.currentTarget = this.getClosestTargets(targets);
 		}
 		this.on('turretTurnComplete', this.fireAndRescan.bind(this) );
-		this.turretTurn(this.currentTarget.angle);
+		if(this.currentTarget){
+			this.move('stop');
+			this.turretTurn(this.currentTarget.angle);
+		}
 	}
 	fireAndRescan(){
-		this.fireCannon();
-		setTimeout(this.rescan.bind(this), 500);
+		const gunSpecs = this.getComponentSpecs('gun');
+		if(gunSpecs.range > this.currentTarget.range){
+			this.fireCannon();
+			setTimeout(this.reScan.bind(this), 500);
+		} else {
+			this.bodyTurning = true;
+			this.on('bodyTurnComplete',function(){
+				this.move('forward');
+				setInterval(fireAndRescan.bind(this),1000);
+			}.bind(this));
+			this.bodyTurn(this.currentTarget.angle);
+		}
+		
+		
 	}
 	reScan(){
 		const targets = this.activateSensor();
@@ -847,15 +935,44 @@ class DanTank extends BaseTank{
 			 	} else {
 			 		this.fireAndRescan();
 			 	}
+			 	return;
 			 }
+			 i++;
 		}
+		this.magnetoScan = this.activateMagnetoDetector();
+		this.currentTarget = null;
+	}
+	moveForwardAndScan(){
+		this.move('forward');
+		this.bodyTurning = false;
+		this.movingToPoint = true;
+		setTimeout(this.stopAndScan.bind(this),5000);
+	}
+	stopAndScan(){
+		this.move('stop');
+		this.movingToPoint = false;
+		this.currentTarget = null;
+		this.desiredDirection = this.getMostTargets();
+		this.scanVicinity( this.updateTargets.bind(this) )
 	}
 	compute(){
-		if(!this.desiredDirection){
-			this.desiredDirection = this.getMostTargets();
-		}
-		if(this.currentTarget===null){
-			scanVicinity( this.updateTargets.bind(this) );
+		return;
+		if(!this.movingToPoint && this.currentTarget===null && !this.scanInProgress){
+			this.scanVicinity( this.updateTargets.bind(this) );
+		} else if(!this.movingToPoint && !this.scanInProgress){
+			if(!this.desiredDirection){
+				this.desiredDirection = this.getMostTargets();
+			}
+			if(this.getBodyAngle !== this.desiredDirection && !this.bodyTurning){
+				const gunSpecs = this.getComponentSpecs('gun');
+				if(!this.currentTarget){
+					let desiredAngle = 		
+					this.bodyTurning = true;
+					this.on('bodyTurnComplete',this.moveForwardAndScan.bind(this));
+					this.bodyTurn(this.desiredDirection);
+				} 
+
+			}
 		} else {
 
 		}

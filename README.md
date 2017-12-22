@@ -13,6 +13,13 @@
 		- south: distance to south bounds, 
 		- east: distance to east bounds, 
 		- west: distance to west bounds}
+- move
+	- purpose: move the tnak
+	- params: (string) direction
+		- 'forward' : move the tank forward;
+		- 'backward' : move the tank backward;
+		- 'stop': stop tank movement
+	- return: undefined
 - turretTurn
 	- purpose: turn the turret in the specified direction, relative to world direction
 	- params: angle (number)
@@ -50,6 +57,10 @@
 	- purpose: return the angle of the turret
 	- params: none
 	- return: (number) the degree angle of the turret relative to the world
+- getBodyAngle
+	- purpose: return the angle of the tank body
+	- params: none
+	- return: (number) the degree angle of the tank body
 - getName
 	- purpose: get the current tank's name
 	- params: none

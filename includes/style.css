@@ -64,6 +64,18 @@ body{
 	box-sizing: border-box;
 	z-index: 1;
 }
+.tank.body::after{
+	content: 'V';
+    height: 100%;
+    width: 100%;
+    position: absolute;
+    left: -42%;
+    top: 83%;
+    z-index: 20;
+    color: black;
+    font-size: 13px;
+    transform: rotateZ(90deg);
+}
 .tank.turret{
 	left: 50%;
 	top: 50%;
@@ -71,6 +83,18 @@ body{
 	height: 10px;
 	transform: translate(-50%, -50%) rotateZ(0deg);
 	z-index: 2;
+}
+.turret.sense > .barrel::after{
+	content: '(((';
+    font-size: 6.5vmin;
+    width: 8vmin;
+    height: 8vmin;
+    color: lightsteelblue;
+    position: absolute;
+    /* z-index: 20; */
+    left: 100%;
+    top: 50%;
+    transform: translate(17%, -50%);
 }
 .barrel{
 	content: '';
