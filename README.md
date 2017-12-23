@@ -1,5 +1,14 @@
 # tankdesigner specs
 
+## Important: your tank must extend the BaseTank class, and must have at least these functions: 
+/*
+constructor(callback, options,setup){
+	super(callback, options,setup);
+}
+compute(){
+	//your main AI code goes here.
+}
+
 ## BaseTank Specs
 
 ### Properties:
